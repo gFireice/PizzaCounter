@@ -1,0 +1,93 @@
+<!-- static/index.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Подсчёт пицц</title>
+    <style>
+        #loader {
+            display: none;
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #resultImage {
+            max-width: 500px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Подсчёт приготовленных пицц</h1>
+    <input type="file" id="imageInput">
+    <button onclick="processImage()">Запустить обработку</button>
+    <button onclick="downloadReport('pdf')">Скачать PDF отчёт</button>
+    <button onclick="downloadReport('excel')">Скачать Excel отчёт</button>
+    <div id="loader"></div>
+    
+    <p id="stats"></p>
+    <img id="resultImage" />
+
+    <script>
+    async function processImage() {
+        const file = document.getElementById('imageInput').files[0];
+        if (!file) {
+            alert("Выберите изображение!");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        // Показать спиннер
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('stats').innerText = '';
+        document.getElementById('resultImage').src = '';
+
+        try {
+            const response = await fetch('/process', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            document.getElementById('stats').innerText = `Обнаружено пицц: ${data.count}`;
+            document.getElementById('resultImage').src = '/static/result.jpg?' + Date.now();
+        } catch (e) {
+            console.error(e);
+            alert("Ошибка при обработке изображения.");
+        } finally {
+            document.getElementById('loader').style.display = 'none';
+        }
+    }
+    async function downloadReport(type) {
+        const endpoint = type === 'pdf' ? '/report/pdf' : '/report/excel';
+        try {
+            const response = await fetch(endpoint);
+            if (!response.ok) throw new Error('Ошибка загрузки');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `report.${type === 'pdf' ? 'pdf' : 'xlsx'}`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            alert('Ошибка при скачивании отчёта.');
+        }
+    }
+    </script>
+</body>
+</html>
